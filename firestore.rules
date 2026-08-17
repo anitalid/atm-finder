@@ -1,0 +1,20 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    match /users/{uid}      { allow read, write: if signedIn() && request.auth.uid == uid; }
+    match /atms/{id}        { allow read: if signedIn(); }
+    match /riwayat/{id} {
+      allow read, delete: if signedIn() && resource.data.userId == request.auth.uid;
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+    }
+    match /crowd_reports/{id} {
+      // Semua user login boleh baca laporan keramaian (dipakai untuk analisis & ranking bersama).
+      allow read: if signedIn();
+      // User hanya boleh membuat laporan atas namanya sendiri.
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      // Laporan bersifat permanen (log historis untuk pola waktu), tidak boleh diubah/dihapus user.
+      allow update, delete: if false;
+    }
+  }
+}
